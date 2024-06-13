@@ -146,8 +146,8 @@ def generate(user_id, request):
         app_js = chosen_files(user_id, project, ["App.js"])
         query_str = f'''{query_string}\n{file_loc}'''
         # print(f"file_loc : {file_loc}")
-        WebWriter = WebWriter.format(code_snippet=app_js, update=update, create=create)
-        prompt_template = f'''###Sytem Message:\n{WebWriter}\n\n### User Query:\nYou must state the appropriate "npm install" commands if you use any npm libraries in your response. You must cite without fail the appropriate component using the prefix "CREATE src/Component.js" or "UPDATE src/Component.js" before a code snippet. Some examples are as follows:\nUPDATE src/App.js\n```javascript\n\n```\n\nCREATE src/Component.js\n```javascript\n\n```\n{query_str}\n\n### System Response:'''                 
+        WebWriter_formatted = WebWriter.format(code_snippet=app_js, update=update, create=create)
+        prompt_template = f'''###Sytem Message:\n{WebWriter_formatted}\n\n### User Query:\nYou must state the appropriate "npm install" commands if you use any npm libraries in your response. You must cite without fail the appropriate component using the prefix "CREATE src/Component.js" or "UPDATE src/Component.js" before a code snippet. Some examples are as follows:\nUPDATE src/App.js\n```javascript\n\n```\n\nCREATE src/Component.js\n```javascript\n\n```\n{query_str}\n\n### System Response:'''                 
         messages = [
             {"role": "system", "content": prompt_template},
             {"role": "user", "content": query_string}
