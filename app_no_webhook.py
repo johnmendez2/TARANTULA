@@ -8,7 +8,6 @@ import datetime
 import os
 import json
 from dotenv import load_dotenv
-app = Flask(__name__)
 from utils.version import API_VERSION, SERVICE_NAME
 from utils.status_codes import StatusCodes
 from uuid import uuid4
@@ -23,11 +22,12 @@ from utils.s3_rename_presigned import rename_and_delete_old_s3_file
 from utils.s3_fetch_file import chosen_files
 from utils.s3_get_total_size import calculate_total_folder_size
 from utils.s3_get_project_structure import list_directory_paths
-
+from flask_cors import CORS
+app = Flask(__name__)
 # Load environment variables
 load_dotenv(override=True)
 app.config.from_object(__name__)  # Load config from object
-
+CORS(app)
 # Load JSON configuration
 with open('config.json') as f:
     config = json.load(f)
@@ -122,38 +122,56 @@ You must cite the appropriate component operation and name every time you send c
 def generate(user_id, request):
     global WebWriter
     global CodeSpinner 
-    print(request)
-
+    # print(request)
+    requestId = str(uuid.uuid4())
     file_paths = request.get('payload').get('file_paths')
     query_string = request.get('payload').get('query_string')  # Extract the query string from the request
     agent = request.get('payload').get('agent') # Assuming 'agent' is passed in the request
     webwriterresponse = request.get('payload').get('webwriterresponse')  # Assuming 'agent' is passed in the request
+    project = request.get('payload').get('project')  # Assuming 'agent' is passed in the request
 
-    print(f"query string: {query_string}")
+    # print(f"query string: {query_string}")
     # file_paths = request.json.get('filePaths') # Get the S3 file's from user that they want to change
 
     # Extracting 'method'
     method = request['method']
-    print(method)  # Output: example_method
+    # print(method)  # Output: example_method
     if method == "write_code":
         file_loc = ""
         if agent:
             if file_paths:
-                file_loc = chosen_files(user_id, file_paths)
+                file_loc = chosen_files(user_id, project, file_paths)
             elif agent != "CodeSpinner":
                 file_loc = ""
-
+        app_js = chosen_files(user_id, project, ["App.js"])
         query_str = f'''{query_string}\n{file_loc}'''
-        print(f"file_loc : {file_loc}")
+        # print(f"file_loc : {file_loc}")
+        WebWriter = WebWriter.format(code_snippet=app_js, update=update, create=create)
         prompt_template = f'''###Sytem Message:\n{WebWriter}\n\n### User Query:\nYou must state the appropriate "npm install" commands if you use any npm libraries in your response. You must cite without fail the appropriate component using the prefix "CREATE src/Component.js" or "UPDATE src/Component.js" before a code snippet. Some examples are as follows:\nUPDATE src/App.js\n```javascript\n\n```\n\nCREATE src/Component.js\n```javascript\n\n```\n{query_str}\n\n### System Response:'''                 
         messages = [
             {"role": "system", "content": prompt_template},
             {"role": "user", "content": query_string}
         ]  
-        data = "This is an example response."
+        # completion_response = send_completion_request(user_id, requestId, prompt_template, query_string)
+        # # Load the JSON string into a Python dictionary
+        # # Assuming completion_response is a Response object from the requests library
+        # try:
+        #     data = completion_response.json()  # Use.json() method to parse the JSON content
+        # except ValueError as e:
+        #     print(f"Error parsing JSON: {e}")
+        # except Exception as e:
+        #     print(f"An unexpected error occurred: {e}")
+
+
+        # # Extract the taskId
+        # taskId = data['response']['taskId']
+        # data = fetch_result_wrapper(user_id, requestId, taskId)
+        data = "Example response"
+        # print(str(data))
+        # data = "This is an example response."
         # Return the initial data
         print(prompt_template)
-        return data
+        return str(data)
     
     elif method == "make_changes":
         # Regex pattern to match the file names after "UPDATE ", capturing everything after the last slash
@@ -168,7 +186,7 @@ def generate(user_id, request):
 
         file_loc = ""
         if file_names != []:
-            file_loc = chosen_files(user_id, file_names)
+            file_loc = chosen_files(user_id, project, file_names)
         elif agent != "CodeSpinner":
             file_loc = ""
 
