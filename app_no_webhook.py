@@ -52,7 +52,7 @@ swaggerui_blueprint = get_swaggerui_blueprint(
 app.register_blueprint(swaggerui_blueprint)
 
 ############### ENV VARIABLES ###############
-SUPPORTED_METHOD = ["write_code", "make_changes","upload_project", "edit_object", "download_project", "get_directory_structure", "get_project_size"]
+SUPPORTED_METHOD = ["write_code", "make_changes","upload_project", "edit_object", "download_project", "get_directory_structure", "get_project_size", "get_file"]
 
 
 ############### ADD YOUR AI MARKETPLACE WEBHOOK ENDPOINT HERE ###############
@@ -303,6 +303,12 @@ def call_endpoint():
     structures = request_data.get('payload').get('structures')
     project_name = request_data.get('payload').get('project_name')
 
+    if method == "get_file":
+        project = request_data.get('payload').get('project')
+        file_paths = request_data.get('payload').get('file_paths')
+        file = chosen_files(user_id, project, file_paths)
+        response_data = success_response(task_id, file, requestId, trace_id, 1)
+        return response_data
 
     if method == "upload_project":
         if user_id is not None and structures is not None and project_name is not None:
