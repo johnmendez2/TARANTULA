@@ -30,6 +30,7 @@ class AudioCraftRequestResult(BaseModel):
 def response_template(request_id: str, 
                                   trace_id: str, 
                                   process_duration: int,
+                                  isResponseImmediate: str,
                                   response: dict,
                                   error_code: dict):
     now = datetime.datetime.now()
@@ -40,6 +41,7 @@ def response_template(request_id: str,
         "apiVersion": API_VERSION,
         "service": SERVICE_NAME,
         "datetime": now,
+        "isResponseImmediate": isResponseImmediate,
         "processDuration": process_duration,
         "response" : response,
         "errorCode" : error_code,

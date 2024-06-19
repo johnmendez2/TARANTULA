@@ -2,7 +2,7 @@ import requests
 
 def fetch_result(requestID, userID, task_id):
     # Define the URL for the request
-    url = 'http://ec2-13-212-114-8.ap-southeast-1.compute.amazonaws.com:8010/result'
+    url = 'http://ec2-13-212-4-131.ap-southeast-1.compute.amazonaws.com:8010/call'
 
     # Define the headers as per the curl command
     headers = {
