@@ -22,6 +22,8 @@ from utils.s3_rename_presigned import rename_and_delete_old_s3_file
 from utils.s3_fetch_file import chosen_files
 from utils.s3_get_total_size import calculate_total_folder_size
 from utils.s3_get_project_structure import list_directory_paths
+# from utils.api_call_llm import send_completion_request
+from utils.api_fetch_result_wrapper import fetch_result_wrapper
 from flask_cors import CORS
 app = Flask(__name__)
 # Load environment variables
@@ -114,10 +116,81 @@ You must rewrite the entire file in your response and never use // ... rest of t
 You must cite the appropriate component operation and name every time you send code without fail using the prefix "CREATE src/Component.js" or "UPDATE src/Component.js" before a code snippet. Some examples are as follows:
 {update}
 
-{create}
+CREATE src/Component.css
+```css
+
+```
 """
 
 ############### MAIN FUNCTIONS ###############
+
+import requests
+
+def send_completion_request(requestID, userID, systemmessage, userquery):
+    """
+    Sends a completion request to the specified endpoint.
+
+    Parameters:
+    requestID (str): The unique request ID.
+    userID (str): The user ID making the request.
+    systemmessage (str): The system message to include in the request.
+    userquery (str): The user query to include in the request.
+
+    Returns:
+    response: The response from the server if successful, otherwise the status code or exception.
+    """
+    # Define the URL for the request
+    url = 'http://ec2-13-212-4-131.ap-southeast-1.compute.amazonaws.com:8010/call'
+
+    # Define the headers as per the curl command
+    headers = {
+        'x-marketplace-token': '1df239ef34d92aa8190b8086e89196ce41ce364190262ba71964e9f84112bc45',
+        'x-request-id': str(requestID),
+        'x-user-id': str(userID),
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    }
+
+    # Define the payload
+    payload = {
+        "method": "completion",
+        "payload": {
+            "model": "llama3_70b",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": str(systemmessage)
+                },
+                {
+                    "role": "user",
+                    "content": str(userquery)
+                }
+            ],
+            "temperature": 0.0,
+            "topP": 0.55,
+            "maxTokens": 4096
+        }
+    }
+
+    print(payload)
+
+    # Send the POST request
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        
+        # Check if the request was successful
+        if response.status_code == 200:
+            print("Request successfuly sent.")
+            # Print the response JSON
+            print(response.json())
+            return response
+        else:
+            print(f"Request failed with status code {response.status_code}.")
+            print(response.text)  # Print the error message from the server
+            return response.status_code
+    except requests.RequestException as e:
+        print(f"An error occurred: {e}")
+        return e
 
 def generate(user_id, request):
     global WebWriter
@@ -147,35 +220,41 @@ def generate(user_id, request):
         query_str = f'''{query_string}\n{file_loc}'''
         # print(f"file_loc : {file_loc}")
         WebWriter_formatted = WebWriter.format(code_snippet=app_js, update=update, create=create)
+        # prompt_template = f'''###Sytem Message:\n{WebWriter}\n\n### User Query:\nYou must state the appropriate "npm install" commands if you use any npm libraries in your response. You must cite without fail the appropriate component using the prefix "CREATE src/Component.js" or "UPDATE src/Component.js" before a code snippet. Some examples are as follows:\nUPDATE src/App.js\n```javascript\n\n```\n\nCREATE src/Component.js\n```javascript\n\n```\n{query_str}\n\n### System Response:'''                 
         prompt_template = f'''###Sytem Message:\n{WebWriter_formatted}\n\n### User Query:\nYou must state the appropriate "npm install" commands if you use any npm libraries in your response. You must cite without fail the appropriate component using the prefix "CREATE src/Component.js" or "UPDATE src/Component.js" before a code snippet. Some examples are as follows:\nUPDATE src/App.js\n```javascript\n\n```\n\nCREATE src/Component.js\n```javascript\n\n```\n{query_str}\n\n### System Response:'''                 
         messages = [
             {"role": "system", "content": prompt_template},
             {"role": "user", "content": query_string}
         ]  
-        # completion_response = send_completion_request(user_id, requestId, prompt_template, query_string)
-        # # Load the JSON string into a Python dictionary
-        # # Assuming completion_response is a Response object from the requests library
-        # try:
-        #     data = completion_response.json()  # Use.json() method to parse the JSON content
-        # except ValueError as e:
-        #     print(f"Error parsing JSON: {e}")
-        # except Exception as e:
-        #     print(f"An unexpected error occurred: {e}")
+        completion_response = send_completion_request(user_id, requestId, str(prompt_template), str(query_string))
+        # Load the JSON string into a Python dictionary
+        # Assuming completion_response is a Response object from the requests library
+        try:
+            data = completion_response.json()  # Use.json() method to parse the JSON content
+        except ValueError as e:
+            print(f"Error parsing JSON: {e}")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
 
 
         # # Extract the taskId
-        # taskId = data['response']['taskId']
+        taskId = data['response']['taskId']
+        print(taskId)
         # data = fetch_result_wrapper(user_id, requestId, taskId)
-        data = "Example response"
-        # print(str(data))
+        if taskId != "":
+            data = taskId
+        else:
+            data = data['errorCode']['reason']
+        # data = "Example response"
+        print(str(data))
         # data = "This is an example response."
         # Return the initial data
-        print(prompt_template)
         return str(data)
     
     elif method == "make_changes":
         # Regex pattern to match the file names after "UPDATE ", capturing everything after the last slash
         pattern = r"UPDATE\s+.*?/(.*?)\n"
+        webwriterresponse = request.get('payload').get('webwriterresponse')  # Assuming 'agent' is passed in the request
 
         # Find all matches
         file_names = re.findall(pattern, webwriterresponse)
@@ -199,7 +278,32 @@ def generate(user_id, request):
             {"role": "system", "content": CodeSpinner},
             {"role": "user", "content": prompt_template}
         ]  
-        data = "This is an example response."
+        completion_response = send_completion_request(user_id, requestId, CodeSpinner, prompt_template)
+        # Load the JSON string into a Python dictionary
+        # Assuming completion_response is a Response object from the requests library
+        try:
+            data = completion_response.json()  # Use.json() method to parse the JSON content
+        except ValueError as e:
+            print(f"Error parsing JSON: {e}")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+
+
+        # # Extract the taskId
+        taskId = data['response']['taskId']
+        print(taskId)
+        # data = fetch_result_wrapper(user_id, requestId, taskId)
+        if taskId != "":
+            data = taskId
+        else:
+            data = data['errorCode']['reason']
+        # data = "Example response"
+        print(str(data))
+        # data = "This is an example response."
+        # Return the initial data
+        print(user_id)
+        print(requestId)
+        return str(data)
         print(prompt_template)
         # with app.app_context():
         #     # Call update_code() here when CodeSpinner is detected
@@ -227,7 +331,7 @@ def success_response(task_id, data, requestId, trace_id, process_duration):
             "data": data
         }
         error_code = {"status": StatusCodes.SUCCESS, "reason": "success"}
-        response_data = response_template(requestId, trace_id, process_duration, response, error_code)
+        response_data = response_template(requestId, trace_id, process_duration, "true", response, error_code)
         return response_data
 
 ############### CHECK IF ALL INFORMATION IS IN REQUEST ###############
@@ -285,7 +389,7 @@ def check_input_request(request):
             "reason": reason
         }
     
-        respose_data = response_template(request_id, trace_id, -1,{}, error_code)
+        respose_data = response_template(request_id, trace_id, -1,"true",{}, error_code)
         
     return respose_data
 
@@ -332,23 +436,23 @@ def call_endpoint():
             else:
                 response = {}
                 error_code = {"status": StatusCodes.ERROR, "reason": f"Folder cannot be created due to: {folder_response}."}
-                response_data = response_template(requestId, trace_id, -1, response, error_code)
+                response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
                 return response_data
         else:
             if project_name is None:
                 response = {}
                 error_code = {"status": StatusCodes.ERROR, "reason": "Cannot find project name in payload"}
-                response_data = response_template(requestId, trace_id, -1, response, error_code)
+                response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
                 return response_data
             if structures is None:
                 response = {}
                 error_code = {"status": StatusCodes.ERROR, "reason": "Structures array not found in payload"}
-                response_data = response_template(requestId, trace_id, -1, response, error_code)
+                response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
                 return response_data
             else:
                 response = {}
                 error_code = {"status": StatusCodes.ERROR, "reason": "User ID not found"}
-                response_data = response_template(requestId, trace_id, -1, response, error_code)
+                response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
                 return response_data
         
 
@@ -425,7 +529,7 @@ def call_endpoint():
                             "data": {}
                         }
                         error_code = {"status": StatusCodes.ERROR, "reason": result}
-                        response_data = response_template(requestId, trace_id, -1, response, error_code)
+                        response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
                         return response_data
 
                 if type == "FOLDER" and not paths_list is None:
@@ -474,24 +578,24 @@ def call_endpoint():
                             }
                         }
                         error_code = {"status": StatusCodes.ERROR, "reason": "All operations failed"}
-                        response_data = response_template(requestId, trace_id, -1, response, error_code)
+                        response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
                         return response_data
                 else:
                     response = {}
                     error_code = {"status": StatusCodes.ERROR, "reason": "Payload items missing"}
-                    response_data = response_template(requestId, trace_id, -1, response, error_code)
+                    response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
                     return response_data
 
             else:
                 response = {}
                 error_code = {"status": StatusCodes.ERROR, "reason": "Wrong method type / missing payload"}
-                response_data = response_template(requestId, trace_id, -1, response, error_code)
+                response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
                 return response_data
 
         else:
             response = {}
             error_code = {"status": StatusCodes.ERROR, "reason": "User ID not found"}
-            response_data = response_template(requestId, trace_id, -1, response, error_code)
+            response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
             return response_data
         
     if method == "get_directory_structure":
@@ -511,12 +615,12 @@ def call_endpoint():
             else:
                 response = {}
                 error_code = {"status": StatusCodes.ERROR, "reason": "Project name not found"}
-                response_data = response_template(requestId, trace_id, -1, response, error_code)
+                response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
                 return response_data
         else:
             response = {}
             error_code = {"status": StatusCodes.ERROR, "reason": "User ID not found"}
-            response_data = response_template(requestId, trace_id, -1, response, error_code)
+            response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
             return response_data
         
 
@@ -538,12 +642,12 @@ def call_endpoint():
             else:
                 response = {}
                 error_code = {"status": StatusCodes.ERROR, "reason": "Project name not found"}
-                response_data = response_template(requestId, trace_id, -1, response, error_code)
+                response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
                 return response_data
         else:
             response = {}
             error_code = {"status": StatusCodes.ERROR, "reason": "User ID not found"}
-            response_data = response_template(requestId, trace_id, -1, response, error_code)
+            response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
             return response_data
 
     else:
@@ -555,7 +659,7 @@ def call_endpoint():
         # Response preparation
         response = {"taskId": task_id}
         error_code = {"status": StatusCodes.PENDING, "reason": "Pending"}
-        respose_data = response_template(requestId, trace_id, -1, response, error_code)
+        response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
         task_status = process_task(task_id,user_id, request_data)
         # Immediate response to the client
         return task_status
@@ -577,6 +681,7 @@ def send_callback(task_id,processing_duration, data):
         "datetime": datetime.datetime.now().isoformat(),
         "processDuration": processing_duration,  # Simulated duration
         "taskId": task_id,
+        "isResponseImmediate": "false",
         "response": {
             "dataType": "string",
             "data": data
