@@ -58,7 +58,7 @@ SUPPORTED_METHOD = ["write_code", "make_changes","upload_project", "edit_object"
 
 
 ############### ADD YOUR AI MARKETPLACE WEBHOOK ENDPOINT HERE ###############
-webhook_url = "http://localhost:8000/callback"
+# webhook_url = "http://localhost:8000/callback"
 webhook_url = "https://marketplace-api-user.dev.devsaitech.com/api/v1/ai-connection/callback"
 
 ############### ADD YOUR CUSTOM AI AGENT CALL HERE ###############
@@ -329,10 +329,11 @@ def success_response(task_id, data, requestId, trace_id, process_duration):
         # Prepare the response
         response = {
             "taskId": task_id,  # Assuming task_id is defined somewhere
-            "data": data
+            "data": data,
+            "dataType": "S3_OBJECT"
         }
         error_code = {"status": StatusCodes.SUCCESS, "reason": "success"}
-        response_data = response_template(requestId, trace_id, process_duration, "true", response, error_code)
+        response_data = response_template(requestId, trace_id, process_duration, True, response, error_code)
         return response_data
 
 ############### CHECK IF ALL INFORMATION IS IN REQUEST ###############
@@ -390,7 +391,7 @@ def check_input_request(request):
             "reason": reason
         }
     
-        respose_data = response_template(request_id, trace_id, -1,"true",{}, error_code)
+        respose_data = response_template(request_id, trace_id, -1,True,{}, error_code)
         
     return respose_data
 
@@ -437,23 +438,23 @@ def call_endpoint():
             else:
                 response = {}
                 error_code = {"status": StatusCodes.ERROR, "reason": f"Folder cannot be created due to: {folder_response}."}
-                response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
+                response_data = response_template(requestId, trace_id, -1, True, response, error_code)
                 return response_data
         else:
             if project_name is None:
                 response = {}
                 error_code = {"status": StatusCodes.ERROR, "reason": "Cannot find project name in payload"}
-                response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
+                response_data = response_template(requestId, trace_id, -1, True, response, error_code)
                 return response_data
             if structures is None:
                 response = {}
                 error_code = {"status": StatusCodes.ERROR, "reason": "Structures array not found in payload"}
-                response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
+                response_data = response_template(requestId, trace_id, -1, True, response, error_code)
                 return response_data
             else:
                 response = {}
                 error_code = {"status": StatusCodes.ERROR, "reason": "User ID not found"}
-                response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
+                response_data = response_template(requestId, trace_id, -1, True, response, error_code)
                 return response_data
         
 
@@ -530,7 +531,7 @@ def call_endpoint():
                             "data": {}
                         }
                         error_code = {"status": StatusCodes.ERROR, "reason": result}
-                        response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
+                        response_data = response_template(requestId, trace_id, -1, True, response, error_code)
                         return response_data
 
                 if type == "FOLDER" and not paths_list is None:
@@ -579,24 +580,24 @@ def call_endpoint():
                             }
                         }
                         error_code = {"status": StatusCodes.ERROR, "reason": "All operations failed"}
-                        response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
+                        response_data = response_template(requestId, trace_id, -1, True, response, error_code)
                         return response_data
                 else:
                     response = {}
                     error_code = {"status": StatusCodes.ERROR, "reason": "Payload items missing"}
-                    response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
+                    response_data = response_template(requestId, trace_id, -1, True, response, error_code)
                     return response_data
 
             else:
                 response = {}
                 error_code = {"status": StatusCodes.ERROR, "reason": "Wrong method type / missing payload"}
-                response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
+                response_data = response_template(requestId, trace_id, -1, True, response, error_code)
                 return response_data
 
         else:
             response = {}
             error_code = {"status": StatusCodes.ERROR, "reason": "User ID not found"}
-            response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
+            response_data = response_template(requestId, trace_id, -1, True, response, error_code)
             return response_data
         
     if method == "get_directory_structure":
@@ -616,12 +617,12 @@ def call_endpoint():
             else:
                 response = {}
                 error_code = {"status": StatusCodes.ERROR, "reason": "Project name not found"}
-                response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
+                response_data = response_template(requestId, trace_id, -1, True, response, error_code)
                 return response_data
         else:
             response = {}
             error_code = {"status": StatusCodes.ERROR, "reason": "User ID not found"}
-            response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
+            response_data = response_template(requestId, trace_id, -1, True, response, error_code)
             return response_data
         
 
@@ -643,12 +644,12 @@ def call_endpoint():
             else:
                 response = {}
                 error_code = {"status": StatusCodes.ERROR, "reason": "Project name not found"}
-                response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
+                response_data = response_template(requestId, trace_id, -1, True, response, error_code)
                 return response_data
         else:
             response = {}
             error_code = {"status": StatusCodes.ERROR, "reason": "User ID not found"}
-            response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
+            response_data = response_template(requestId, trace_id, -1, True, response, error_code)
             return response_data
 
     else:
@@ -660,21 +661,21 @@ def call_endpoint():
         # Response preparation
         response = {"taskId": task_id}
         error_code = {"status": StatusCodes.PENDING, "reason": "Pending"}
-        response_data = response_template(requestId, trace_id, -1, "true", response, error_code)
-        task_status = process_task(task_id,user_id, request_data)
+        response_data = response_template(requestId, trace_id, -1, False, response, error_code)
+        task_status = process_task(task_id,requestId, user_id, request_data)
         # Immediate response to the client
-        return task_status
+        return response_data
     
 ############### PROCESS THE CALL TASK HERE ###############
-def process_task(task_id,user_id,request_data):
+def process_task(task_id,requestId, user_id,request_data):
     data, processing_duration = process_query(user_id,request_data)
     print(data)
     # Send the callback
-    callback = send_callback(task_id,processing_duration, data)
+    callback = send_callback(user_id, task_id,requestId,processing_duration, data)
     return callback
 
 ############### SEND CALLBACK TO YOUR APP MARKETPLACE ENDPOINT WITH TASK RESPONSE ###############
-def send_callback(task_id,processing_duration, data):
+def send_callback(user_id, task_id,requestId, processing_duration, data):
     
     callback_message = {
         "apiVersion": API_VERSION,
@@ -682,22 +683,25 @@ def send_callback(task_id,processing_duration, data):
         "datetime": datetime.datetime.now().isoformat(),
         "processDuration": processing_duration,  # Simulated duration
         "taskId": task_id,
-        "isResponseImmediate": "false",
+        "isResponseImmediate": False,
         "response": {
-            "dataType": "string",
+            "dataType": "META_DATA",
             "data": data
         },
-        "StatusCodes": {
+        "errorCode": {
             "status": "TA_000",
             "reason": "success"
         }
     }
     
     headers = {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "x-marketplace-token": "1df239ef34d92aa8190b8086e89196ce41ce364190262ba71964e9f84112bc45",
+        "x-request-id": requestId,
+        "x-user-id": user_id
     }
-    return callback_message
-    # response = requests.post(webhook_url, json=callback_message, headers=headers)
+    # return callback_message
+    response = requests.post(webhook_url, json=callback_message, headers=headers)
 
 ############### RUN YOUR SERVER HERE ###############
 if __name__ == '__main__':
