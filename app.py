@@ -8,6 +8,8 @@ import datetime
 import os
 import json
 from dotenv import load_dotenv
+app = Flask(__name__)
+from flask_mysqldb import MySQL
 from utils.version import API_VERSION, SERVICE_NAME
 from utils.status_codes import StatusCodes
 from uuid import uuid4
@@ -22,14 +24,11 @@ from utils.s3_rename_presigned import rename_and_delete_old_s3_file
 from utils.s3_fetch_file import chosen_files
 from utils.s3_get_total_size import calculate_total_folder_size
 from utils.s3_get_project_structure import list_directory_paths
-# from utils.api_call_llm import send_completion_request
-from utils.api_fetch_result_wrapper import fetch_result_wrapper
-from flask_cors import CORS
-app = Flask(__name__)
+
 # Load environment variables
-load_dotenv(override=True)
+load_dotenv()  # Take environment variables from.env.
 app.config.from_object(__name__)  # Load config from object
-CORS(app)
+
 # Load JSON configuration
 with open('config.json') as f:
     config = json.load(f)
@@ -54,12 +53,11 @@ swaggerui_blueprint = get_swaggerui_blueprint(
 app.register_blueprint(swaggerui_blueprint)
 
 ############### ENV VARIABLES ###############
-SUPPORTED_METHOD = ["write_code", "make_changes","upload_project", "edit_object", "download_project", "get_directory_structure", "get_project_size", "get_file"]
+SUPPORTED_METHOD = ["write_code", "make_changes","upload_project", "edit_object", "download_project", "get_directory_structure", "get_project_size"]
 
 
 ############### ADD YOUR AI MARKETPLACE WEBHOOK ENDPOINT HERE ###############
 webhook_url = "http://localhost:8000/callback"
-# webhook_url = "https://marketplace-api-user.dev.devsaitech.com/api/v1/ai-connection/callback"
 
 ############### ADD YOUR CUSTOM AI AGENT CALL HERE ###############
 
@@ -117,145 +115,50 @@ You must rewrite the entire file in your response and never use // ... rest of t
 You must cite the appropriate component operation and name every time you send code without fail using the prefix "CREATE src/Component.js" or "UPDATE src/Component.js" before a code snippet. Some examples are as follows:
 {update}
 
-CREATE src/Component.css
-```css
-
-```
+{create}
 """
 
 ############### MAIN FUNCTIONS ###############
 
-import requests
-
-def send_completion_request(requestID, userID, systemmessage, userquery):
-    """
-    Sends a completion request to the specified endpoint.
-
-    Parameters:
-    requestID (str): The unique request ID.
-    userID (str): The user ID making the request.
-    systemmessage (str): The system message to include in the request.
-    userquery (str): The user query to include in the request.
-
-    Returns:
-    response: The response from the server if successful, otherwise the status code or exception.
-    """
-    # Define the URL for the request
-    url = 'http://ec2-54-251-99-208.ap-southeast-1.compute.amazonaws.com:8010/call'
-
-    # Define the headers as per the curl command
-    headers = {
-        'x-marketplace-token': '1df239ef34d92aa8190b8086e89196ce41ce364190262ba71964e9f84112bc45',
-        'x-request-id': str(requestID),
-        'x-user-id': str(userID),
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-    }
-
-    # Define the payload
-    payload = {
-        "method": "completion",
-        "payload": {
-            "model": "llama3_70b",
-            "messages": [
-                {
-                    "role": "system",
-                    "content": str(systemmessage)
-                },
-                {
-                    "role": "user",
-                    "content": str(userquery)
-                }
-            ],
-            "temperature": 0.0,
-            "topP": 0.55,
-            "maxTokens": 4096
-        }
-    }
-
-    print(payload)
-
-    # Send the POST request
-    try:
-        response = requests.post(url, json=payload, headers=headers)
-        
-        # Check if the request was successful
-        if response.status_code == 200:
-            print("Request successfuly sent.")
-            # Print the response JSON
-            print(response.json())
-            return response
-        else:
-            print(f"Request failed with status code {response.status_code}.")
-            print(response.text)  # Print the error message from the server
-            return response.status_code
-    except requests.RequestException as e:
-        print(f"An error occurred: {e}")
-        return e
-
 def generate(user_id, request):
     global WebWriter
     global CodeSpinner 
-    # print(request)
-    requestId = str(uuid.uuid4())
+    print(request)
+
     file_paths = request.get('payload').get('file_paths')
     query_string = request.get('payload').get('query_string')  # Extract the query string from the request
     agent = request.get('payload').get('agent') # Assuming 'agent' is passed in the request
     webwriterresponse = request.get('payload').get('webwriterresponse')  # Assuming 'agent' is passed in the request
-    project = request.get('payload').get('project')  # Assuming 'agent' is passed in the request
 
-    # print(f"query string: {query_string}")
+    print(f"query string: {query_string}")
     # file_paths = request.json.get('filePaths') # Get the S3 file's from user that they want to change
 
     # Extracting 'method'
     method = request['method']
-    # print(method)  # Output: example_method
+    print(method)  # Output: example_method
     if method == "write_code":
         file_loc = ""
         if agent:
             if file_paths:
-                file_loc = chosen_files(user_id, project, file_paths)
+                file_loc = chosen_files(user_id, file_paths)
             elif agent != "CodeSpinner":
                 file_loc = ""
-        app_js = chosen_files(user_id, project, ["App.js"])
+
         query_str = f'''{query_string}\n{file_loc}'''
-        # print(f"file_loc : {file_loc}")
-        WebWriter_formatted = WebWriter.format(code_snippet=app_js, update=update, create=create)
-        # prompt_template = f'''###Sytem Message:\n{WebWriter}\n\n### User Query:\nYou must state the appropriate "npm install" commands if you use any npm libraries in your response. You must cite without fail the appropriate component using the prefix "CREATE src/Component.js" or "UPDATE src/Component.js" before a code snippet. Some examples are as follows:\nUPDATE src/App.js\n```javascript\n\n```\n\nCREATE src/Component.js\n```javascript\n\n```\n{query_str}\n\n### System Response:'''                 
-        prompt_template = f'''###Sytem Message:\n{WebWriter_formatted}\n\n### User Query:\nYou must state the appropriate "npm install" commands if you use any npm libraries in your response. You must cite without fail the appropriate component using the prefix "CREATE src/Component.js" or "UPDATE src/Component.js" before a code snippet. Some examples are as follows:\nUPDATE src/App.js\n```javascript\n\n```\n\nCREATE src/Component.js\n```javascript\n\n```\n{query_str}\n\n### System Response:'''                 
+        print(f"file_loc : {file_loc}")
+        prompt_template = f'''###Sytem Message:\n{WebWriter}\n\n### User Query:\nYou must state the appropriate "npm install" commands if you use any npm libraries in your response. You must cite without fail the appropriate component using the prefix "CREATE src/Component.js" or "UPDATE src/Component.js" before a code snippet. Some examples are as follows:\nUPDATE src/App.js\n```javascript\n\n```\n\nCREATE src/Component.js\n```javascript\n\n```\n{query_str}\n\n### System Response:'''                 
         messages = [
             {"role": "system", "content": prompt_template},
             {"role": "user", "content": query_string}
         ]  
-        completion_response = send_completion_request(user_id, requestId, str(prompt_template), str(query_string))
-        # Load the JSON string into a Python dictionary
-        # Assuming completion_response is a Response object from the requests library
-        try:
-            data = completion_response.json()  # Use.json() method to parse the JSON content
-        except ValueError as e:
-            print(f"Error parsing JSON: {e}")
-        except Exception as e:
-            print(f"An unexpected error occurred: {e}")
-
-
-        # # Extract the taskId
-        taskId = data['response']['taskId']
-        print(taskId)
-        # data = fetch_result_wrapper(user_id, requestId, taskId)
-        if taskId != "":
-            data = taskId
-        else:
-            data = data['errorCode']['reason']
-        # data = "Example response"
-        print(str(data))
-        # data = "This is an example response."
+        data = "This is an example response."
         # Return the initial data
-        return str(data)
+        print(prompt_template)
+        return data
     
     elif method == "make_changes":
         # Regex pattern to match the file names after "UPDATE ", capturing everything after the last slash
         pattern = r"UPDATE\s+.*?/(.*?)\n"
-        webwriterresponse = request.get('payload').get('webwriterresponse')  # Assuming 'agent' is passed in the request
 
         # Find all matches
         file_names = re.findall(pattern, webwriterresponse)
@@ -266,7 +169,7 @@ def generate(user_id, request):
 
         file_loc = ""
         if file_names != []:
-            file_loc = chosen_files(user_id, project, file_names)
+            file_loc = chosen_files(user_id, file_names)
         elif agent != "CodeSpinner":
             file_loc = ""
 
@@ -279,32 +182,7 @@ def generate(user_id, request):
             {"role": "system", "content": CodeSpinner},
             {"role": "user", "content": prompt_template}
         ]  
-        completion_response = send_completion_request(user_id, requestId, CodeSpinner, prompt_template)
-        # Load the JSON string into a Python dictionary
-        # Assuming completion_response is a Response object from the requests library
-        try:
-            data = completion_response.json()  # Use.json() method to parse the JSON content
-        except ValueError as e:
-            print(f"Error parsing JSON: {e}")
-        except Exception as e:
-            print(f"An unexpected error occurred: {e}")
-
-
-        # # Extract the taskId
-        taskId = data['response']['taskId']
-        print(taskId)
-        # data = fetch_result_wrapper(user_id, requestId, taskId)
-        if taskId != "":
-            data = taskId
-        else:
-            data = data['errorCode']['reason']
-        # data = "Example response"
-        print(str(data))
-        # data = "This is an example response."
-        # Return the initial data
-        print(user_id)
-        print(requestId)
-        return str(data)
+        data = "This is an example response."
         print(prompt_template)
         # with app.app_context():
         #     # Call update_code() here when CodeSpinner is detected
@@ -329,11 +207,10 @@ def success_response(task_id, data, requestId, trace_id, process_duration):
         # Prepare the response
         response = {
             "taskId": task_id,  # Assuming task_id is defined somewhere
-            "data": data,
-            "dataType": "S3_OBJECT"
+            "data": data
         }
         error_code = {"status": StatusCodes.SUCCESS, "reason": "success"}
-        response_data = response_template(requestId, trace_id, process_duration, True, response, error_code)
+        response_data = response_template(requestId, trace_id, process_duration, response, error_code)
         return response_data
 
 ############### CHECK IF ALL INFORMATION IS IN REQUEST ###############
@@ -391,7 +268,7 @@ def check_input_request(request):
             "reason": reason
         }
     
-        respose_data = response_template(request_id, trace_id, -1,True,{}, error_code)
+        respose_data = response_template(request_id, trace_id, -1,{}, error_code)
         
     return respose_data
 
@@ -409,12 +286,6 @@ def call_endpoint():
     structures = request_data.get('payload').get('structures')
     project_name = request_data.get('payload').get('project_name')
 
-    if method == "get_file":
-        project = request_data.get('payload').get('project')
-        file_paths = request_data.get('payload').get('file_paths')
-        file = chosen_files(user_id, project, file_paths)
-        response_data = success_response(task_id, file, requestId, trace_id, 1)
-        return response_data
 
     if method == "upload_project":
         if user_id is not None and structures is not None and project_name is not None:
@@ -438,23 +309,23 @@ def call_endpoint():
             else:
                 response = {}
                 error_code = {"status": StatusCodes.ERROR, "reason": f"Folder cannot be created due to: {folder_response}."}
-                response_data = response_template(requestId, trace_id, -1, True, response, error_code)
+                response_data = response_template(requestId, trace_id, -1, response, error_code)
                 return response_data
         else:
             if project_name is None:
                 response = {}
                 error_code = {"status": StatusCodes.ERROR, "reason": "Cannot find project name in payload"}
-                response_data = response_template(requestId, trace_id, -1, True, response, error_code)
+                response_data = response_template(requestId, trace_id, -1, response, error_code)
                 return response_data
             if structures is None:
                 response = {}
                 error_code = {"status": StatusCodes.ERROR, "reason": "Structures array not found in payload"}
-                response_data = response_template(requestId, trace_id, -1, True, response, error_code)
+                response_data = response_template(requestId, trace_id, -1, response, error_code)
                 return response_data
             else:
                 response = {}
                 error_code = {"status": StatusCodes.ERROR, "reason": "User ID not found"}
-                response_data = response_template(requestId, trace_id, -1, True, response, error_code)
+                response_data = response_template(requestId, trace_id, -1, response, error_code)
                 return response_data
         
 
@@ -531,18 +402,17 @@ def call_endpoint():
                             "data": {}
                         }
                         error_code = {"status": StatusCodes.ERROR, "reason": result}
-                        response_data = response_template(requestId, trace_id, -1, True, response, error_code)
+                        response_data = response_template(requestId, trace_id, -1, response, error_code)
                         return response_data
 
                 if type == "FOLDER" and not paths_list is None:
                     start_time = time.time()
                     successful_operations = []  # List to store successful operations
                     failed_operations = []  # List to store failed operations
-                    # Parse the JSON string into a Python object (a list of dictionaries in this case)
-                    parsed_paths_list = json.loads(paths_list)
-                    for path_item in parsed_paths_list:
-                        old_path = path_item["old_file_path"]
-                        new_path = path_item["new_file_path"]
+
+                    for path_item in paths_list:
+                        old_path = path_item["old"]
+                        new_path = path_item["new"]
                         rename_result = rename_and_delete_old_s3_file(old_path, new_path)  # Assuming you have a similar function for folders
                         print(rename_result)
                         if rename_result == "New file copied succesfully. Old file deleted successfully.":
@@ -580,24 +450,24 @@ def call_endpoint():
                             }
                         }
                         error_code = {"status": StatusCodes.ERROR, "reason": "All operations failed"}
-                        response_data = response_template(requestId, trace_id, -1, True, response, error_code)
+                        response_data = response_template(requestId, trace_id, -1, response, error_code)
                         return response_data
                 else:
                     response = {}
                     error_code = {"status": StatusCodes.ERROR, "reason": "Payload items missing"}
-                    response_data = response_template(requestId, trace_id, -1, True, response, error_code)
+                    response_data = response_template(requestId, trace_id, -1, response, error_code)
                     return response_data
 
             else:
                 response = {}
                 error_code = {"status": StatusCodes.ERROR, "reason": "Wrong method type / missing payload"}
-                response_data = response_template(requestId, trace_id, -1, True, response, error_code)
+                response_data = response_template(requestId, trace_id, -1, response, error_code)
                 return response_data
 
         else:
             response = {}
             error_code = {"status": StatusCodes.ERROR, "reason": "User ID not found"}
-            response_data = response_template(requestId, trace_id, -1, True, response, error_code)
+            response_data = response_template(requestId, trace_id, -1, response, error_code)
             return response_data
         
     if method == "get_directory_structure":
@@ -617,12 +487,12 @@ def call_endpoint():
             else:
                 response = {}
                 error_code = {"status": StatusCodes.ERROR, "reason": "Project name not found"}
-                response_data = response_template(requestId, trace_id, -1, True, response, error_code)
+                response_data = response_template(requestId, trace_id, -1, response, error_code)
                 return response_data
         else:
             response = {}
             error_code = {"status": StatusCodes.ERROR, "reason": "User ID not found"}
-            response_data = response_template(requestId, trace_id, -1, True, response, error_code)
+            response_data = response_template(requestId, trace_id, -1, response, error_code)
             return response_data
         
 
@@ -644,12 +514,12 @@ def call_endpoint():
             else:
                 response = {}
                 error_code = {"status": StatusCodes.ERROR, "reason": "Project name not found"}
-                response_data = response_template(requestId, trace_id, -1, True, response, error_code)
+                response_data = response_template(requestId, trace_id, -1, response, error_code)
                 return response_data
         else:
             response = {}
             error_code = {"status": StatusCodes.ERROR, "reason": "User ID not found"}
-            response_data = response_template(requestId, trace_id, -1, True, response, error_code)
+            response_data = response_template(requestId, trace_id, -1, response, error_code)
             return response_data
 
     else:
@@ -661,21 +531,23 @@ def call_endpoint():
         # Response preparation
         response = {"taskId": task_id}
         error_code = {"status": StatusCodes.PENDING, "reason": "Pending"}
-        response_data = response_template(requestId, trace_id, -1, False, response, error_code)
-        task_status = process_task(task_id,requestId, user_id, request_data)
+        respose_data = response_template(requestId, trace_id, -1, response, error_code)
+
+        # Task processing in a separate thread
+        threading.Thread(target=process_task, args=(task_id,user_id, request_data,)).start()
+
         # Immediate response to the client
-        return response_data
+        return jsonify(respose_data), 200
     
 ############### PROCESS THE CALL TASK HERE ###############
-def process_task(task_id,requestId, user_id,request_data):
+def process_task(task_id,user_id,request_data):
     data, processing_duration = process_query(user_id,request_data)
     print(data)
     # Send the callback
-    callback = send_callback(user_id, task_id,requestId,processing_duration, data)
-    return callback
+    send_callback(task_id,processing_duration, data)
 
 ############### SEND CALLBACK TO YOUR APP MARKETPLACE ENDPOINT WITH TASK RESPONSE ###############
-def send_callback(user_id, task_id,requestId, processing_duration, data):
+def send_callback(task_id,processing_duration, data):
     
     callback_message = {
         "apiVersion": API_VERSION,
@@ -683,26 +555,19 @@ def send_callback(user_id, task_id,requestId, processing_duration, data):
         "datetime": datetime.datetime.now().isoformat(),
         "processDuration": processing_duration,  # Simulated duration
         "taskId": task_id,
-        "isResponseImmediate": False,
         "response": {
-            "dataType": "META_DATA",
+            "dataType": "string",
             "data": data
         },
-        "errorCode": {
+        "StatusCodes": {
             "status": "TA_000",
             "reason": "success"
         }
     }
     
     headers = {
-        "Content-Type": "application/json",
-        "x-marketplace-token": "1df239ef34d92aa8190b8086e89196ce41ce364190262ba71964e9f84112bc45",
-        "x-request-id": requestId,
-        "x-user-id": user_id
+        "Content-Type": "application/json"
     }
-    # return callback_message
-    time.sleep(2)
-
     response = requests.post(webhook_url, json=callback_message, headers=headers)
 
 ############### RUN YOUR SERVER HERE ###############
