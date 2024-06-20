@@ -140,7 +140,7 @@ def send_completion_request(requestID, userID, systemmessage, userquery):
     response: The response from the server if successful, otherwise the status code or exception.
     """
     # Define the URL for the request
-    url = 'http://ec2-13-212-4-131.ap-southeast-1.compute.amazonaws.com:8010/call'
+    url = ' http://ec2-54-251-99-208.ap-southeast-1.compute.amazonaws.com:8010/call'
 
     # Define the headers as per the curl command
     headers = {
