@@ -702,6 +702,7 @@ def send_callback(user_id, task_id,requestId, processing_duration, data):
         "x-user-id": user_id
     }
     # return callback_message
+    time.sleep(2)
 
     response = requests.post(webhook_url, json=callback_message, headers=headers)
 
