@@ -715,6 +715,7 @@ def send_callback(user_id, task_id,requestId, processing_duration, data):
     time.sleep(2)
 
     response = requests.post(webhook_url, json=callback_message, headers=headers)
+    print(response.json())
 ############### RUN YOUR SERVER HERE ###############
 if __name__ == '__main__':
     app.run(debug=True)
