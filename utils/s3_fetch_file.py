@@ -56,7 +56,7 @@ def chosen_files(user_id, app_name, files_to_find):
 
 # Example usage
 # user_id = "sk-131r4qdad421451"
-# app_name = "welcomeapp"
+# app_name = "welcomeap"
 # file_paths = ["HelloWorld.css"]
 # directory_paths = chosen_files(user_id,app_name, file_paths)
 # print(directory_paths)
