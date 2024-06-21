@@ -58,8 +58,8 @@ SUPPORTED_METHOD = ["write_code", "make_changes","upload_project", "edit_object"
 
 
 ############### ADD YOUR AI MARKETPLACE WEBHOOK ENDPOINT HERE ###############
-webhook_url = "http://localhost:8000/callback"
-# webhook_url = "https://marketplace-api-user.dev.devsaitech.com/api/v1/ai-connection/callback"
+# webhook_url = "http://localhost:8000/callback"
+webhook_url = "https://marketplace-api-user.dev.devsaitech.com/api/v1/ai-connection/callback"
 
 ############### ADD YOUR CUSTOM AI AGENT CALL HERE ###############
 
