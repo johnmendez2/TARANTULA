@@ -693,7 +693,7 @@ def send_callback(task_id, processing_duration, data):
         "datetime": datetime.datetime.now().isoformat(),
         "processDuration": processing_duration,  # Simulated duration
         "taskId": task_id,
-        "isResponseImmediate": False,
+        "isResponseImmediate": True,
         "response": {
             "dataType": "META_DATA",
             "data": data
