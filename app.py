@@ -23,9 +23,11 @@ from utils.s3_fetch_file import chosen_files
 from utils.s3_get_total_size import calculate_total_folder_size
 from utils.s3_get_project_structure import list_directory_paths
 # from utils.api_call_llm import send_completion_request
+import asyncio
 import logging
 from utils.api_fetch_result_wrapper import fetch_result_wrapper
 from flask_cors import CORS
+from concurrent.futures import ThreadPoolExecutor
 app = Flask(__name__)
 # Load environment variables
 load_dotenv(override=True)
@@ -66,7 +68,13 @@ webhook_url = "https://marketplace-api-user.dev.devsaitech.com/api/v1/ai-connect
 
 
 ############### GLOBAL PROMPT TEMPLATES ###############
+from httpx import AsyncClient
+
+# Initialize an AsyncClient instance outside of your route handler
+client = AsyncClient(base_url="https://marketplace-api-user.dev.devsaitech.com/api/v1/ai-connection/callback")
+
 # Configure logging
+executor = ThreadPoolExecutor(max_workers=20)  # Adjust max_workers as needed
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Example usage
@@ -671,12 +679,15 @@ def call_endpoint():
         response = {"taskId": task_id}
         error_code = {"status": StatusCodes.PENDING, "reason": "Pending"}
         response_data = response_template(requestId, trace_id, -1, False, response, error_code)
-        a = threading.Thread(target=process_task, args=(task_id, requestId, user_id, request_data,))
-        a.start()
 
-        logging.info(f"Thread started: {a}")
-        # task_status = process_task(task_id,requestId, user_id, request_data)
-        # Immediate response to the client
+        # Schedule process_task to run in the executor
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        future = loop.run_in_executor(executor, process_task, task_id, requestId, user_id, request_data)
+
+        logging.info("Task scheduled for processing")
+
+        # Return the initial response to the client
         return response_data
     
 ############### PROCESS THE CALL TASK HERE ###############
