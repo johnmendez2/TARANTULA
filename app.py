@@ -23,6 +23,7 @@ from utils.s3_fetch_file import chosen_files
 from utils.s3_get_total_size import calculate_total_folder_size
 from utils.s3_get_project_structure import list_directory_paths
 # from utils.api_call_llm import send_completion_request
+import logging
 from utils.api_fetch_result_wrapper import fetch_result_wrapper
 from flask_cors import CORS
 app = Flask(__name__)
@@ -65,6 +66,14 @@ webhook_url = "https://marketplace-api-user.dev.devsaitech.com/api/v1/ai-connect
 
 
 ############### GLOBAL PROMPT TEMPLATES ###############
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Example usage
+logging.info('This is an informational message')
+logging.warning('This is a warning message')
+logging.error('This is an error message')
+
 update = """
 UPDATE src/App.js
 ```javascript
@@ -662,7 +671,10 @@ def call_endpoint():
         response = {"taskId": task_id}
         error_code = {"status": StatusCodes.PENDING, "reason": "Pending"}
         response_data = response_template(requestId, trace_id, -1, False, response, error_code)
-        threading.Thread(target=process_task, args=(task_id,requestId, user_id, request_data,)).start()
+        a = threading.Thread(target=process_task, args=(task_id, requestId, user_id, request_data,))
+        a.start()
+
+        logging.info(f"Thread started: {a}")
         # task_status = process_task(task_id,requestId, user_id, request_data)
         # Immediate response to the client
         return response_data
