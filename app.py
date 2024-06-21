@@ -23,11 +23,8 @@ from utils.s3_fetch_file import chosen_files
 from utils.s3_get_total_size import calculate_total_folder_size
 from utils.s3_get_project_structure import list_directory_paths
 # from utils.api_call_llm import send_completion_request
-import asyncio
-import logging
 from utils.api_fetch_result_wrapper import fetch_result_wrapper
 from flask_cors import CORS
-from concurrent.futures import ThreadPoolExecutor
 app = Flask(__name__)
 # Load environment variables
 load_dotenv(override=True)
@@ -68,17 +65,6 @@ webhook_url = "http://localhost:8000/callback"
 
 
 ############### GLOBAL PROMPT TEMPLATES ###############
-# Initialize an AsyncClient instance outside of your route handler
-
-# Configure logging
-executor = ThreadPoolExecutor(max_workers=20)  # Adjust max_workers as needed
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-# Example usage
-logging.info('This is an informational message')
-logging.warning('This is a warning message')
-logging.error('This is an error message')
-
 update = """
 UPDATE src/App.js
 ```javascript
@@ -216,11 +202,10 @@ def generate(user_id, request):
     query_string = request.get('payload').get('query_string')  # Extract the query string from the request
     agent = request.get('payload').get('agent') # Assuming 'agent' is passed in the request
     webwriterresponse = request.get('payload').get('webwriterresponse')  # Assuming 'agent' is passed in the request
-    project = request.get('payload').get('project_name')  # Assuming 'agent' is passed in the request
+    project = request.get('payload').get('project')  # Assuming 'agent' is passed in the request
 
     # print(f"query string: {query_string}")
     # file_paths = request.json.get('filePaths') # Get the S3 file's from user that they want to change
-
     # Extracting 'method'
     method = request['method']
     # print(method)  # Output: example_method
@@ -231,7 +216,12 @@ def generate(user_id, request):
                 file_loc = chosen_files(user_id, project, file_paths)
             elif agent != "CodeSpinner":
                 file_loc = ""
+
+
         app_js = chosen_files(user_id, project, ["App.js"])
+        print("appjs: "+app_js)
+        if "No files" in app_js:
+            return "No files found in that project"
         query_str = f'''{query_string}\n{file_loc}'''
         # print(f"file_loc : {file_loc}")
         WebWriter_formatted = WebWriter.format(code_snippet=app_js, update=update, create=create)
@@ -284,6 +274,10 @@ def generate(user_id, request):
         elif agent != "CodeSpinner":
             file_loc = ""
 
+        print("file_loc: "+file_loc)
+        if "No files" in file_loc:
+            return "No files found in that project"
+
         if file_loc != "":
             prompt_template = f'''Original code files:\n{file_loc}\n\n### Find and update the code using the appropriate operations "CREATE" and "UPDATE" that you must incorporate in the existing code:\n{webwriterresponse}\n### CodeSpinner Response:\n'''            
         else:
@@ -319,12 +313,6 @@ def generate(user_id, request):
         print(user_id)
         print(requestId)
         return str(data)
-        print(prompt_template)
-        # with app.app_context():
-        #     # Call update_code() here when CodeSpinner is detected
-        #     update_code()
-        # Return the initial data
-        return data
     
 ############### MIDDLEWARE FUNCTIONS ###############
 # Modify the return statement in process_query to handle generator functions correctly
@@ -359,12 +347,20 @@ def check_input_request(request):
     query_string = request_data.get('payload').get('query_string')  # Extract the query string from the request
     agent = request_data.get('payload').get('agent') # Assuming 'agent' is passed in the request
     webwriterresponse = request_data.get('payload').get('webwriterresponse')  # Assuming 'agent' is passed in the request
-
+    project = request_data.get('payload').get('project')
     user_id = request.headers.get('X-User-ID', None)
 
     if user_id is None or not user_id.strip():
         status = StatusCodes.INVALID_REQUEST
         reason = "userToken is invalid"
+    request_id = request.headers.get('x-request-id', None)
+    request_data = request.get_json()
+    print(request_data)
+    respose_data = None
+
+    if project is None or not project.strip():
+        status = StatusCodes.INVALID_REQUEST
+        reason = "project field is invalid/not found"
     request_id = request.headers.get('x-request-id', None)
     request_data = request.get_json()
     print(request_data)
@@ -424,7 +420,7 @@ def call_endpoint():
     project_name = request_data.get('payload').get('project_name')
 
     if method == "get_file":
-        project = request_data.get('payload').get('project_name')
+        project = request_data.get('payload').get('project')
         file_paths = request_data.get('payload').get('file_paths')
         file = chosen_files(user_id, project, file_paths)
         response_data = success_response(task_id, file, requestId, trace_id, 1)
@@ -676,15 +672,9 @@ def call_endpoint():
         response = {"taskId": task_id}
         error_code = {"status": StatusCodes.PENDING, "reason": "Pending"}
         response_data = response_template(requestId, trace_id, -1, False, response, error_code)
-
-        # Schedule process_task to run in the executor
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        future = loop.run_in_executor(executor, process_task, task_id, requestId, user_id, request_data)
-
-        logging.info("Task scheduled for processing")
-
-        # Return the initial response to the client
+        threading.Thread(target=process_task, args=(task_id,requestId, user_id, request_data,)).start()
+        # task_status = process_task(task_id,requestId, user_id, request_data)
+        # Immediate response to the client
         return response_data
     
 ############### PROCESS THE CALL TASK HERE ###############
@@ -725,8 +715,6 @@ def send_callback(user_id, task_id,requestId, processing_duration, data):
     time.sleep(2)
 
     response = requests.post(webhook_url, json=callback_message, headers=headers)
-    print(response.json())
-    print(response)
 ############### RUN YOUR SERVER HERE ###############
 if __name__ == '__main__':
     app.run(debug=True)

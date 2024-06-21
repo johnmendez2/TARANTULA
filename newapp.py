@@ -202,7 +202,7 @@ def generate(user_id, request):
     query_string = request.get('payload').get('query_string')  # Extract the query string from the request
     agent = request.get('payload').get('agent') # Assuming 'agent' is passed in the request
     webwriterresponse = request.get('payload').get('webwriterresponse')  # Assuming 'agent' is passed in the request
-    project = request.get('payload').get('project')  # Assuming 'agent' is passed in the request
+    project = request.get('payload').get('project_name')  # Assuming 'agent' is passed in the request
 
     # print(f"query string: {query_string}")
     # file_paths = request.json.get('filePaths') # Get the S3 file's from user that they want to change
@@ -347,7 +347,7 @@ def check_input_request(request):
     query_string = request_data.get('payload').get('query_string')  # Extract the query string from the request
     agent = request_data.get('payload').get('agent') # Assuming 'agent' is passed in the request
     webwriterresponse = request_data.get('payload').get('webwriterresponse')  # Assuming 'agent' is passed in the request
-    project = request_data.get('payload').get('project')
+    project = request_data.get('payload').get('project_name')
     user_id = request.headers.get('X-User-ID', None)
 
     if user_id is None or not user_id.strip():
@@ -360,7 +360,7 @@ def check_input_request(request):
 
     if project is None or not project.strip():
         status = StatusCodes.INVALID_REQUEST
-        reason = "project field is invalid/not found"
+        reason = "project_name field is invalid/not found"
     request_id = request.headers.get('x-request-id', None)
     request_data = request.get_json()
     print(request_data)
@@ -420,7 +420,7 @@ def call_endpoint():
     project_name = request_data.get('payload').get('project_name')
 
     if method == "get_file":
-        project = request_data.get('payload').get('project')
+        project = request_data.get('payload').get('project_name')
         file_paths = request_data.get('payload').get('file_paths')
         file = chosen_files(user_id, project, file_paths)
         response_data = success_response(task_id, file, requestId, trace_id, 1)
@@ -671,22 +671,21 @@ def call_endpoint():
         # Response preparation
         response = {"taskId": task_id}
         error_code = {"status": StatusCodes.PENDING, "reason": "Pending"}
-        response_data = response_template(requestId, trace_id, -1, False, response, error_code)
-        threading.Thread(target=process_task, args=(task_id,requestId, user_id, request_data,)).start()
+        task_status = process_task(task_id,requestId, user_id, request_data)
         # task_status = process_task(task_id,requestId, user_id, request_data)
         # Immediate response to the client
-        return response_data
+        return task_status
     
 ############### PROCESS THE CALL TASK HERE ###############
 def process_task(task_id,requestId, user_id,request_data):
     data, processing_duration = process_query(user_id,request_data)
     print(data)
     # Send the callback
-    send_callback(user_id, task_id,requestId,processing_duration, data)
-    # return callback
+    callback = send_callback(task_id,processing_duration, data)
+    return callback
 
 ############### SEND CALLBACK TO YOUR APP MARKETPLACE ENDPOINT WITH TASK RESPONSE ###############
-def send_callback(user_id, task_id,requestId, processing_duration, data):
+def send_callback(task_id, processing_duration, data):
     
     callback_message = {
         "apiVersion": API_VERSION,
@@ -704,18 +703,9 @@ def send_callback(user_id, task_id,requestId, processing_duration, data):
             "reason": "success"
         }
     }
-    
-    headers = {
-        "Content-Type": "application/json",
-        "x-marketplace-token": "1df239ef34d92aa8190b8086e89196ce41ce364190262ba71964e9f84112bc45",
-        "x-request-id": requestId,
-        "x-user-id": user_id
-    }
     # return callback_message
-    time.sleep(2)
+    return callback_message
 
-    response = requests.post(webhook_url, json=callback_message, headers=headers)
-    print(response.json())
 ############### RUN YOUR SERVER HERE ###############
 if __name__ == '__main__':
     app.run(debug=True)
