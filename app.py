@@ -710,7 +710,7 @@ def send_callback(user_id, task_id,requestId, processing_duration, data):
             "reason": "success"
         }
     }
-
+    time.sleep(2)
     response = requests.post(url, headers=headers, json=data)
 
     # To print the response text (or handle it as needed)
