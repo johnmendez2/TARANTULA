@@ -124,6 +124,9 @@ CREATE src/Component.css
 """
 
 ############### MAIN FUNCTIONS ###############
+
+import requests
+
 def send_completion_request(requestID, userID, systemmessage, userquery):
     """
     Sends a completion request to the specified endpoint.
@@ -203,6 +206,7 @@ def generate(user_id, request):
 
     # print(f"query string: {query_string}")
     # file_paths = request.json.get('filePaths') # Get the S3 file's from user that they want to change
+
     # Extracting 'method'
     method = request['method']
     # print(method)  # Output: example_method
@@ -213,12 +217,7 @@ def generate(user_id, request):
                 file_loc = chosen_files(user_id, project, file_paths)
             elif agent != "CodeSpinner":
                 file_loc = ""
-
-
         app_js = chosen_files(user_id, project, ["App.js"])
-        print("appjs: "+app_js)
-        if "No files" in app_js:
-            return "No files found in that project"
         query_str = f'''{query_string}\n{file_loc}'''
         # print(f"file_loc : {file_loc}")
         WebWriter_formatted = WebWriter.format(code_snippet=app_js, update=update, create=create)
@@ -271,10 +270,6 @@ def generate(user_id, request):
         elif agent != "CodeSpinner":
             file_loc = ""
 
-        print("file_loc: "+file_loc)
-        if "No files" in file_loc:
-            return "No files found in that project"
-
         if file_loc != "":
             prompt_template = f'''Original code files:\n{file_loc}\n\n### Find and update the code using the appropriate operations "CREATE" and "UPDATE" that you must incorporate in the existing code:\n{webwriterresponse}\n### CodeSpinner Response:\n'''            
         else:
@@ -310,6 +305,12 @@ def generate(user_id, request):
         print(user_id)
         print(requestId)
         return str(data)
+        print(prompt_template)
+        # with app.app_context():
+        #     # Call update_code() here when CodeSpinner is detected
+        #     update_code()
+        # Return the initial data
+        return data
     
 ############### MIDDLEWARE FUNCTIONS ###############
 # Modify the return statement in process_query to handle generator functions correctly
@@ -344,20 +345,12 @@ def check_input_request(request):
     query_string = request_data.get('payload').get('query_string')  # Extract the query string from the request
     agent = request_data.get('payload').get('agent') # Assuming 'agent' is passed in the request
     webwriterresponse = request_data.get('payload').get('webwriterresponse')  # Assuming 'agent' is passed in the request
-    project = request_data.get('payload').get('project')
+
     user_id = request.headers.get('X-User-ID', None)
 
     if user_id is None or not user_id.strip():
         status = StatusCodes.INVALID_REQUEST
         reason = "userToken is invalid"
-    request_id = request.headers.get('x-request-id', None)
-    request_data = request.get_json()
-    print(request_data)
-    respose_data = None
-
-    if project is None or not project.strip():
-        status = StatusCodes.INVALID_REQUEST
-        reason = "project field is invalid/not found"
     request_id = request.headers.get('x-request-id', None)
     request_data = request.get_json()
     print(request_data)
@@ -684,17 +677,8 @@ def process_task(task_id,requestId, user_id,request_data):
 
 ############### SEND CALLBACK TO YOUR APP MARKETPLACE ENDPOINT WITH TASK RESPONSE ###############
 def send_callback(user_id, task_id,requestId, processing_duration, data):
-
-    url = 'https://marketplace-api-user.dev.devsaitech.com/api/v1/ai-connection/callback'
-
-    headers = {
-        'x-marketplace-token': '1df239ef34d92aa8190b8086e89196ce41ce364190262ba71964e9f84112bc45',
-        'x-request-id': requestId,
-        'x-user-id': user_id,
-        'Content-Type': 'application/json',
-    }
-
-    data = {
+    
+    callback_message = {
         "apiVersion": API_VERSION,
         "service": SERVICE_NAME,
         "datetime": datetime.datetime.now().isoformat(),
@@ -710,11 +694,19 @@ def send_callback(user_id, task_id,requestId, processing_duration, data):
             "reason": "success"
         }
     }
+    
+    headers = {
+        "Content-Type": "application/json",
+        "x-marketplace-token": "1df239ef34d92aa8190b8086e89196ce41ce364190262ba71964e9f84112bc45",
+        "x-request-id": requestId,
+        "x-user-id": user_id
+    }
+    # return callback_message
     time.sleep(2)
-    response = requests.post(url, headers=headers, json=data)
 
-    # To print the response text (or handle it as needed)
-    print(response.text)
+    response = requests.post(webhook_url, json=callback_message, headers=headers)
+    print(response.json())
+    print(response)
 ############### RUN YOUR SERVER HERE ###############
 if __name__ == '__main__':
     app.run(debug=True)
