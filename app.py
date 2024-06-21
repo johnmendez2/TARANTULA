@@ -124,9 +124,6 @@ CREATE src/Component.css
 """
 
 ############### MAIN FUNCTIONS ###############
-
-import requests
-
 def send_completion_request(requestID, userID, systemmessage, userquery):
     """
     Sends a completion request to the specified endpoint.
@@ -687,8 +684,17 @@ def process_task(task_id,requestId, user_id,request_data):
 
 ############### SEND CALLBACK TO YOUR APP MARKETPLACE ENDPOINT WITH TASK RESPONSE ###############
 def send_callback(user_id, task_id,requestId, processing_duration, data):
-    
-    callback_message = {
+
+    url = 'https://marketplace-api-user.dev.devsaitech.com/api/v1/ai-connection/callback'
+
+    headers = {
+        'x-marketplace-token': '1df239ef34d92aa8190b8086e89196ce41ce364190262ba71964e9f84112bc45',
+        'x-request-id': requestId,
+        'x-user-id': user_id,
+        'Content-Type': 'application/json',
+    }
+
+    data = {
         "apiVersion": API_VERSION,
         "service": SERVICE_NAME,
         "datetime": datetime.datetime.now().isoformat(),
@@ -704,18 +710,11 @@ def send_callback(user_id, task_id,requestId, processing_duration, data):
             "reason": "success"
         }
     }
-    
-    headers = {
-        "Content-Type": "application/json",
-        "x-marketplace-token": "1df239ef34d92aa8190b8086e89196ce41ce364190262ba71964e9f84112bc45",
-        "x-request-id": requestId,
-        "x-user-id": user_id
-    }
-    # return callback_message
-    time.sleep(2)
 
-    response = requests.post(webhook_url, json=callback_message, headers=headers)
-    print(response.json())
+    response = requests.post(url, headers=headers, json=data)
+
+    # To print the response text (or handle it as needed)
+    print(response.text)
 ############### RUN YOUR SERVER HERE ###############
 if __name__ == '__main__':
     app.run(debug=True)
