@@ -22,6 +22,7 @@ from utils.s3_rename_presigned import rename_and_delete_old_s3_file
 from utils.s3_fetch_file import chosen_files
 from utils.s3_get_total_size import calculate_total_folder_size
 from utils.s3_get_project_structure import list_directory_paths
+from utils.api_llm_result import fetch_result
 # from utils.api_call_llm import send_completion_request
 from utils.api_fetch_result_wrapper import fetch_result_wrapper
 from flask_cors import CORS
@@ -684,6 +685,35 @@ def call_endpoint():
         # Immediate response to the client
         return jsonify(respose_data), 200
     
+@app.route('/result', methods=['POST'])
+def result():
+    user_id = request.headers.get('X-User-ID', None)
+    requestId = request.headers.get('x-request-id', None)
+    request_data = request.get_json()
+    taskID = request_data.get("taskId")
+    trace_id = str(uuid.uuid4())
+    result_request_id = str(uuid.uuid4())
+    if user_id is None or not user_id.strip():
+        error_code = {"status": StatusCodes.ERROR, "reason": "No User ID found in headers"}
+        response_data = response_template(result_request_id, trace_id, -1, True, {}, error_code)
+        return response_data
+
+    if requestId is None or not requestId.strip():
+        error_code = {"status": StatusCodes.ERROR, "reason": "No request ID found in headers"}
+        response_data = response_template(result_request_id, trace_id, -1, True, {}, error_code)
+        return response_data
+    
+    if taskID is None or not taskID.strip():
+        error_code = {"status": StatusCodes.ERROR, "reason": "No task ID found in body"}
+        response_data = response_template(result_request_id, trace_id, -1, True, {}, error_code)
+        return response_data
+
+    print(taskID)
+    data = fetch_result(user_id, requestId, taskID)
+    print(data)
+    return jsonify(data), 200
+
+
 ############### PROCESS THE CALL TASK HERE ###############
 def process_task(task_id,requestId, user_id,request_data):
     data, processing_duration = process_query(user_id,request_data)

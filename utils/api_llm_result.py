@@ -2,7 +2,7 @@ import requests
 
 def fetch_result(requestID, userID, task_id):
     # Define the URL for the request
-    url = 'http://ec2-13-212-4-131.ap-southeast-1.compute.amazonaws.com:8010/call'
+    url = 'http://ec2-54-251-99-208.ap-southeast-1.compute.amazonaws.com:8010/result'
 
     # Define the headers as per the curl command
     headers = {
@@ -33,6 +33,6 @@ def fetch_result(requestID, userID, task_id):
     except Exception as e:
         print(f"An error occurred: {e}")
 
-# # Example usage of the function
-# task_id = "799e8cd9-c5d6-491c-9e1d-255aae723a90"
+# Example usage of the function
+# task_id = "7cd5d3a1-dc7c-4f7b-aff3-e7d40d22804d"
 # fetch_result("abc123", "abc123", task_id)
