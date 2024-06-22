@@ -670,6 +670,13 @@ def call_endpoint():
 
         # Response preparation
         task_status, processing_duration = process_task(task_id,requestId, user_id, request_data)
+
+        if "No files" in task_status:
+            error_code = {"status": StatusCodes.ERROR, "reason": "No files found in the project"}
+            response_data = response_template(requestId, trace_id, -1, True, task_status, error_code)
+            return response_data
+
+        print(task_status)
         response = {"taskId": task_status}
         error_code = {"status": StatusCodes.PENDING, "reason": "Pending"}
         respose_data = response_template(requestId, trace_id, processing_duration, False, response, error_code)
