@@ -669,20 +669,21 @@ def call_endpoint():
             return ret
 
         # Response preparation
-        response = {"taskId": task_id}
+        task_status, processing_duration = process_task(task_id,requestId, user_id, request_data)
+        response = {"taskId": task_status}
         error_code = {"status": StatusCodes.PENDING, "reason": "Pending"}
-        task_status = process_task(task_id,requestId, user_id, request_data)
+        respose_data = response_template(requestId, trace_id, processing_duration, False, response, error_code)
         # task_status = process_task(task_id,requestId, user_id, request_data)
         # Immediate response to the client
-        return task_status
+        return jsonify(respose_data), 200
     
 ############### PROCESS THE CALL TASK HERE ###############
 def process_task(task_id,requestId, user_id,request_data):
     data, processing_duration = process_query(user_id,request_data)
     print(data)
     # Send the callback
-    callback = send_callback(task_id,processing_duration, data)
-    return callback
+    # callback = send_callback(task_id,processing_duration, data)
+    return data, processing_duration
 
 ############### SEND CALLBACK TO YOUR APP MARKETPLACE ENDPOINT WITH TASK RESPONSE ###############
 def send_callback(task_id, processing_duration, data):
