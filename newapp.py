@@ -437,7 +437,7 @@ def call_endpoint():
             folder_response,folder_bool = create_folder(folder_path)
             if folder_bool and "Folder already exists." in folder_response:
                 response = {}
-                error_code = {"status": StatusCodes.ERROR, "reason": f"Folder cannot be created due to: {folder_response}"}
+                error_code = {"status": StatusCodes.ALREADYEXISTS, "reason": f"Folder cannot be created due to: {folder_response}"}
                 response_data = response_template(requestId, trace_id, -1, True, response, error_code)
                 return response_data
             

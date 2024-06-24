@@ -16,3 +16,4 @@ class StatusCodes:
     RABBIT_ERROR    = "TA_502" # Service cannot connect to Rabbit
     REDIS_ERROR     = "TA_303" # Service cannot connect to Redis
     S3_ERROR        = "TA_504" # Service cannot connect to S3
+    ALREADYEXISTS   = "TA_505"
