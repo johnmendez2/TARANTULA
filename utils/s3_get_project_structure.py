@@ -62,7 +62,7 @@ def list_directory_contents(s3_client, bucket_name, directory_path, directory_pa
             list_directory_contents(s3_client, bucket_name, prefix['Prefix'], directory_paths)  # Recurse into subdirectories
 
 # Example usage
-# user_id = "2"
-# project_name = "example_project_name"
+# user_id = "sk-131r4qdad421451"
+# project_name = "aaaaaaa"
 # directory_paths = list_directory_paths(user_id, project_name)
 # print(directory_paths)

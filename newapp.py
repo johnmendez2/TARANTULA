@@ -490,7 +490,7 @@ def call_endpoint():
             old_file_path = request_data.get('payload').get('old_file_path')
             new_file_path = request_data.get('payload').get('new_file_path')
             paths_list = request_data.get('payload').get('paths')
-
+            project_name = request_data.get('payload').get('project_name')
             if edit_method == "CREATE" and not path is None:
                 start_time = time.time()
                 file_path = folder_path + path
@@ -517,18 +517,33 @@ def call_endpoint():
                 response_data = success_response(task_id, data, requestId, trace_id, process_duration)
                 return response_data
             
-            if edit_method == "DELETE" and not path is None:
-                start_time = time.time()
-                file_path = folder_path + path
-                file_presigned = generate_presigned_delete(file_path) 
-                data =  {
-                        "type": type,
-                        "data": file_presigned
-                    }
-                end_time = time.time()
-                process_duration = end_time - start_time
-                response_data = success_response(task_id, data, requestId, trace_id, process_duration)
-                return response_data
+            if edit_method == "DELETE":
+
+                if type == "FILE" and not path is None:
+                    start_time = time.time()
+                    file_path = folder_path + path
+                    file_presigned = generate_presigned_delete(file_path) 
+                    data =  {
+                            "type": type,
+                            "data": file_presigned
+                        }
+                    end_time = time.time()
+                    process_duration = end_time - start_time
+                    response_data = success_response(task_id, data, requestId, trace_id, process_duration)
+                    return response_data
+                
+
+                if type == "FOLDER" and not project_name is None:
+                    start_time = time.time()
+                    get_directory_structure = list_directory_paths(user_id, project_name)
+                    project_delete_presign = []
+                    for file_path in get_directory_structure:
+                        file_presigned = generate_presigned_delete(file_path) 
+                        project_delete_presign.append({file_path: file_presigned})
+                    end_time = time.time()
+                    process_duration = end_time - start_time
+                    response_data = success_response(task_id, project_delete_presign, requestId, trace_id, process_duration)
+                    return response_data
             
 
             if edit_method == "RENAME":
