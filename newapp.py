@@ -96,15 +96,15 @@ CREATE src/Component.css
 WebWriter ="""
 Your name is Tarantula, you are a full-stack ReactJS developer developed by SOLIDUS AITECH. You will only respond to Web Development questions.\
 You will help update existing components and create new components based on the users requirements.\
-Here is the users src/App.js file:
+Here is the users src/App file:
 {code_snippet}
 
-You must update App.js to import any components that are necessary. You must import CSS for the respective javascript files.
+You must update App file to import any components that are necessary. You must import CSS for the respective javascript files.
 You must implement every function yourself, do not leave any tasks for the user.\
 Only use libraries you are sure of, do not use libraries that do not exist, or that aren't popular.\
 If you need to use a library that is not imported in the code, send a bash command to install the library in the form "npm install".\
 If you are sending code, send the whole code along with updates. Do not ever say // ... (rest of the component) or there will be severe consequences, ensure you send the whole codebase along with the component and JSX.\
-You must cite the appropriate component operation and name every time you send code without fail using the prefix "CREATE src/Component.js" or "UPDATE src/Component.js" before a code snippet. Some examples are as follows:
+You must cite the appropriate component operation and name every time you send code without fail using the prefix "CREATE src/Component.js" or "UPDATE src/Component.tsx" before a code snippet. Some examples are as follows:
 {update}
 
 {create}
@@ -115,7 +115,7 @@ Ensure that the operation name prefixes are always present before sending the co
 CodeSpinner = f"""
 You are CodeSpinner, an agent that updates old Components with the updates mentioned to you. You will respond with the entire component updated with the changes provided to you.\
 You must rewrite the entire file in your response and never use // ... rest of the component. Failure to listen to this instruction will cause grave consequences.\
-You must cite the appropriate component operation and name every time you send code without fail using the prefix "CREATE src/Component.js" or "UPDATE src/Component.js" before a code snippet. Some examples are as follows:
+You must cite the appropriate component operation and name every time you send code without fail using the prefix "CREATE src/Component.js" or "UPDATE src/Component.tsx" before a code snippet. Some examples are as follows:
 {update}
 
 CREATE src/Component.css
@@ -222,12 +222,15 @@ def generate(user_id, request):
         app_js = chosen_files(user_id, project, ["App.js"])
         print("appjs: "+app_js)
         if "No files" in app_js:
-            return "No files found in that project"
+            app_js = chosen_files(user_id, project, ["App.tsx"])
+            if "No files" in app_js:
+                return "App file not found in that project"
+        
         query_str = f'''{query_string}\n{file_loc}'''
         # print(f"file_loc : {file_loc}")
         WebWriter_formatted = WebWriter.format(code_snippet=app_js, update=update, create=create)
         # prompt_template = f'''###Sytem Message:\n{WebWriter}\n\n### User Query:\nYou must state the appropriate "npm install" commands if you use any npm libraries in your response. You must cite without fail the appropriate component using the prefix "CREATE src/Component.js" or "UPDATE src/Component.js" before a code snippet. Some examples are as follows:\nUPDATE src/App.js\n```javascript\n\n```\n\nCREATE src/Component.js\n```javascript\n\n```\n{query_str}\n\n### System Response:'''                 
-        prompt_template = f'''###Sytem Message:\n{WebWriter_formatted}\n\n### User Query:\nYou must state the appropriate "npm install" commands if you use any npm libraries in your response. You must cite without fail the appropriate component using the prefix "CREATE src/Component.js" or "UPDATE src/Component.js" before a code snippet. Some examples are as follows:\nUPDATE src/App.js\n```javascript\n\n```\n\nCREATE src/Component.js\n```javascript\n\n```\n{query_str}\n\n### System Response:'''                 
+        prompt_template = f'''###Sytem Message:\n{WebWriter_formatted}\n\n### User Query:\nYou must state the appropriate "npm install" commands if you use any npm libraries in your response. You must cite without fail the appropriate component using the prefix "CREATE src/Component.js" or "UPDATE src/Component.tsx" before a code snippet. Some examples are as follows:\nUPDATE src/App.js\n```javascript\n\n```\n\nCREATE src/Component.tsx\n```javascript\n\n```\n{query_str}\n\n### System Response:'''                 
         messages = [
             {"role": "system", "content": prompt_template},
             {"role": "user", "content": query_string}
