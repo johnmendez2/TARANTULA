@@ -432,15 +432,22 @@ def call_endpoint():
 
     if method == "upload_project":
         if user_id is not None and structures is not None and project_name is not None:
-            folder_path = f"{user_id}/"
+            # folder_path = f"{user_id}/"
+            folder_path = f"{user_id}/{project_name}/"
             folder_response,folder_bool = create_folder(folder_path)
-            if folder_bool:
+            if folder_bool and "Folder already exists." in folder_response:
+                response = {}
+                error_code = {"status": StatusCodes.ERROR, "reason": f"Folder cannot be created due to: {folder_response}"}
+                response_data = response_template(requestId, trace_id, -1, True, response, error_code)
+                return response_data
+            
+            elif folder_bool and "Folder already exists." not in folder_response:
                 start_time = time.time()
                 request_data = request.get_json()
-                project_path = folder_path + project_name +'/'
+                # project_path = folder_path + project_name +'/'
                 
                 # Adjusting the pre_signed_urls generation to include folder_path as a prefix
-                pre_signed_urls = {project_path + file: create_presigned_url(project_path + file) for file in structures}
+                pre_signed_urls = {folder_path + file: create_presigned_url(folder_path + file) for file in structures}
                 data =  {
                     "folder_status": folder_response,
                     "pre_signed_urls": pre_signed_urls

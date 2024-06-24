@@ -53,9 +53,9 @@ def chosen_files(user_id, app_name, files_to_find):
     # Return the final output string
     return output_string
 
-# user_id = "sk-131r4qdad421451"
-# app_name = "welcomeap"
-# app = chosen_files(user_id, app_name, ["App.js"])
+# user_id = "0012782711865754112"
+# app_name = "thanos"
+# app = chosen_files(user_id, app_name, ["App.tsx"])
 # print(app)
 # Example usage
 # user_id = "sk-131r4qdad421451"
