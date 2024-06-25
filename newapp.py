@@ -220,12 +220,14 @@ def generate(user_id, request):
 
 
         app_js = chosen_files(user_id, project, ["App.js"])
+        print(f"user_id: {user_id}\n project: {project}\n")  
         print("appjs: "+app_js)
-        if "No files" in app_js:
+        if app_js == "":
             app_js = chosen_files(user_id, project, ["App.tsx"])
             if "No files" in app_js:
                 return "App file not found in that project"
-        
+  
+        print(f"app file: {app_js}")
         query_str = f'''{query_string}\n{file_loc}'''
         # print(f"file_loc : {file_loc}")
         WebWriter_formatted = WebWriter.format(code_snippet=app_js, update=update, create=create)
