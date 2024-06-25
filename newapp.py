@@ -437,9 +437,23 @@ def call_endpoint():
             folder_response,folder_bool = create_folder(folder_path)
             if folder_bool and "Folder already exists." in folder_response:
                 response = {}
-                error_code = {"status": StatusCodes.ALREADYEXISTS, "reason": f"Folder cannot be created due to: {folder_response}"}
-                response_data = response_template(requestId, trace_id, -1, True, response, error_code)
+                start_time = time.time()
+                get_directory_structure = list_directory_paths(user_id, project_name)
+                project_delete_presign = []
+                for file_path in get_directory_structure:
+                    file_presigned = generate_presigned_delete(file_path) 
+                    project_delete_presign.append({file_path: file_presigned})
+                end_time = time.time()
+                data =  {
+                    "folder_status": folder_response,
+                    "pre_signed_delete_urls": project_delete_presign
+                }
+                process_duration = end_time - start_time
+                response_data = success_response(task_id, data, requestId, trace_id, process_duration)
                 return response_data
+                # error_code = {"status": StatusCodes.ALREADYEXISTS, "reason": f"Folder cannot be created due to: {folder_response}"}
+                # response_data = response_template(requestId, trace_id, -1, True, response, error_code)
+                # return response_data
             
             elif folder_bool and "Folder already exists." not in folder_response:
                 start_time = time.time()

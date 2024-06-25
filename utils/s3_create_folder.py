@@ -40,5 +40,5 @@ def create_folder(folder_path):
         return "No AWS credentials found",False
 
 # # Example usage
-# folder_path = 'sk-1ijqjadaldl100lkdlal0/'
+# folder_path = '0016684209136331845/awesomeapp'
 # create_folder(folder_path)
